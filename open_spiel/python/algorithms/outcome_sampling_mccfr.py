@@ -22,6 +22,7 @@ import numpy as np
 import pyspiel
 
 # Indices in the information sets for the regrets and average policy sums.
+#信息集中的表示遗憾和平均保单金额的指数。
 _REGRET_INDEX = 0
 _AVG_POLICY_INDEX = 1
 
@@ -30,7 +31,8 @@ class OutcomeSamplingSolver(object):
   """An implementation of outcome sampling MCCFR.
 
   Uses stochastically-weighted averaging.
-
+  结果采样MCCFR的实现
+   使用随机加权平均
   For details, see Chapter 4 (p. 49) of:
   http://mlanctot.info/files/papers/PhD_Thesis_MarcLanctot.pdf
   (Lanctot, 2013. "Monte Carlo Sampling and Regret Minimization for Equilibrium
@@ -44,6 +46,7 @@ class OutcomeSamplingSolver(object):
     # This is the epsilon exploration factor. When sampling episodes, the
     # updating player will sampling according to expl * uniform + (1 - expl) *
     # current_policy.
+    #这是epsilon探索因素。 采样剧集时，更新播放器将根据expl * uniform + (1 - expl) *current_policy进行更新
     self._expl = 0.6
 
     assert game.get_type().dynamics == pyspiel.GameType.Dynamics.SEQUENTIAL, (
@@ -56,6 +59,8 @@ class OutcomeSamplingSolver(object):
 
     An iteration consists of one episode for each player as the update player.
     """
+    #执行一次结果采样迭代。
+    #迭代由每个玩家作为更新玩家的一个情节组成。
     for update_player in range(self._num_players):
       state = self._game.new_initial_state()
       self._episode(
@@ -63,7 +68,7 @@ class OutcomeSamplingSolver(object):
 
   def _lookup_infostate_info(self, info_state_key, num_legal_actions):
     """Looks up an information set table for the given key.
-
+        查找给定键的信息集表。
     Args:
       info_state_key: information state key (string identifier).
       num_legal_actions: number of legal actions at this information state.
@@ -80,6 +85,7 @@ class OutcomeSamplingSolver(object):
 
     # Start with a small amount of regret and total accumulation, to give a
     # uniform policy: this will get erased fast.
+    #从少量的遗憾和总的积累开始，制定统一的政策：这将很快被消除。
     self._infostates[info_state_key] = [
         np.ones(num_legal_actions, dtype=np.float64) / 1000.0,
         np.ones(num_legal_actions, dtype=np.float64) / 1000.0,
@@ -97,6 +103,8 @@ class OutcomeSamplingSolver(object):
 
     The callable has a signature of the form string (information
     state key) -> list of (action, prob).
+    将平均联合保单返回为可赎回价格。
+   可调用对象具有形式字符串的签名（信息状态密钥）->（动作，概率）列表。
     """
 
     def wrap(state):
@@ -121,6 +129,14 @@ class OutcomeSamplingSolver(object):
     Returns:
       numpy array of the policy indexed by the index of legal action in the
       list.
+      应用后悔匹配以获取策略。
+
+     精氨酸：
+       遗憾：每一个动作都会感到遗憾。
+       num_legal_actions：在此状态下法律诉讼的数量。
+
+     返回值：
+       由列表中的法律行动索引索引的策略的numpy数组。
     """
     positive_regrets = np.maximum(regrets,
                                   np.zeros(num_legal_actions, dtype=np.float64))
@@ -147,6 +163,34 @@ class OutcomeSamplingSolver(object):
           of the trajectory, and
         - reach_tail is the product of all players' reach probabilities
           to the terminal state (from the state that was passed in).
+          
+Runs an episode of outcome sampling.
+
+    Args:
+      state: the open spiel state to run from (will be modified in-place).
+      update_player: the player to update regrets for (the other players update average strategies)
+      my_reach: reach probability of the update player
+      opp_reach: reach probability of all the opponents (including chance)
+      sample_reach: reach probability of the sampling (behavior) policy
+
+    Returns:
+      A tuple of (util, reach_tail), where:
+        - util is the utility of the update player divided by the sample reach of the trajectory, and
+        - reach_tail is the product of all players' reach probabilities to the terminal state (from the state that was passed in).
+715/5000
+运行结果抽样情节。
+
+     精氨酸：
+       状态：要运行的开放spiel状态（将被就地修改）。
+       update_player：要更新遗憾的玩家（其他玩家更新平均策略）
+       my_reach：达到更新播放器的概率
+       opp_reach：所有对手的达到概率（包括机会）
+       sample_reach：达到采样（行为）策略的概率
+
+     返回值：
+       （util，reach_tail）的元组，其中：
+         -util是更新播放器的实用程序除以轨迹的样本范围，并且
+         -reach_tail是所有玩家到达终端状态（从传入状态开始）的到达概率的乘积。
     """
     if state.is_terminal():
       return state.player_return(update_player) / sample_reach, 1.0
